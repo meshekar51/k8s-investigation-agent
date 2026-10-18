@@ -1,0 +1,12 @@
+# Pinned = reproducible builds. Upgrade on purpose, then re-run the evals before merging.
+langchain==1.4.6
+langchain-core==1.6.11
+langgraph==1.2.15
+langchain-aws==1.9.0
+langgraph-checkpoint-postgres==3.2.0
+psycopg[binary]==3.3.6
+psycopg-pool==3.3.3
+boto3==1.43.114
+fastapi==0.143.2
+uvicorn==0.53.0
+prometheus-client==0.26.0

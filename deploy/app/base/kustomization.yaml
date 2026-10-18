@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - postgres.yaml
+labels:
+  - pairs: {app.kubernetes.io/part-of: k8s-sre-agent}
+configMapGenerator:
+  - name: sre-agent-config
+    literals:
+      - AWS_REGION=eu-central-1
+      - BEDROCK_MODEL_ID=eu.anthropic.claude-sonnet-5-5
+      - BEDROCK_GUARDRAIL_ID=          # paste `terraform output -raw guardrail_id` here (prod refuses empty)
+      - BEDROCK_GUARDRAIL_VERSION=1
+      - MAX_TOKENS=4096
+      - RECURSION_LIMIT=40
+      - LOG_LEVEL=INFO
+      - POSTGRES_HOST=sre-agent-db
+      - POSTGRES_DB=sreagent
+      - POSTGRES_USER=sreagent

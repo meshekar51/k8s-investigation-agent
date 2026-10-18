@@ -1,0 +1,9 @@
+# Local practice cluster (Docker Desktop must be running).
+#   kind create cluster --config lab/kind-cluster.yaml
+#   kubectl cluster-info --context kind-agentops-lab
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: agentops-lab
+nodes:
+  - role: control-plane
+  - role: worker

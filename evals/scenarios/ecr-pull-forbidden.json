@@ -1,0 +1,44 @@
+{
+  "id": "ecr-pull-forbidden",
+  "description": "Node cannot pull from ECR: 403 Forbidden -> node IAM role / ECR repo policy problem",
+  "source": "seed (generated, realistic kubectl output)",
+  "input": "New payments release in namespace shop is stuck in ImagePullBackOff. Other services pull from the same ECR fine. Investigate.",
+  "fixtures": {
+    "kubectl get pods -A -o wide": "NAMESPACE     NAME                           READY   STATUS             RESTARTS   AGE   IP           NODE                                          NOMINATED NODE   READINESS GATES\nkube-system   aws-node-4kq9z                 2/2     Running            0          14d   10.0.1.87    ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nkube-system   aws-node-h7p2m                 2/2     Running            0          14d   10.0.3.112   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nkube-system   eks-pod-identity-agent-x9c2v   1/1     Running            0          14d   10.0.1.87    ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nkube-system   kube-proxy-7mz4q               1/1     Running            0          14d   10.0.1.87    ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nkube-system   kube-proxy-b2n8w               1/1     Running            0          14d   10.0.3.112   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nshop          cart-5b6c7d8e9f-a1b2c          1/1     Running            0          3d    10.0.1.201   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nshop          catalog-6c7d8e9f0a-d3e4f       1/1     Running            0          3d    10.0.3.150   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nshop          frontend-7d8e9f0a1b-g5h6i      1/1     Running            0          3d    10.0.1.144   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nshop          orders-8e9f0a1b2c-j7k8l        1/1     Running            0          3d    10.0.3.98    ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nshop          payments-6a7b8c9d0e-s3t4u      0/1     ImagePullBackOff   0          12m   10.0.3.71    ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>",
+    "kubectl get pods -n shop -o wide": "NAME                        READY   STATUS             RESTARTS   AGE   IP           NODE                                          NOMINATED NODE   READINESS GATES\ncart-5b6c7d8e9f-a1b2c       1/1     Running            0          3d    10.0.1.201   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\ncatalog-6c7d8e9f0a-d3e4f    1/1     Running            0          3d    10.0.3.150   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nfrontend-7d8e9f0a1b-g5h6i   1/1     Running            0          3d    10.0.1.144   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\norders-8e9f0a1b2c-j7k8l     1/1     Running            0          3d    10.0.3.98    ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\npayments-6a7b8c9d0e-s3t4u   0/1     ImagePullBackOff   0          12m   10.0.3.71    ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>",
+    "kubectl describe pod payments-6a7b8c9d0e-s3t4u -n shop": "Name:             payments-6a7b8c9d0e-s3t4u\nNamespace:        shop\nService Account:  default\nNode:             ip-10-0-3-112.eu-central-1.compute.internal/10.0.3.112\nLabels:           app=payments\nStatus:           Pending\nIP:               10.0.3.71\nContainers:\n  payments:\n    Image:          440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\n    State:          Waiting\n      Reason:       ImagePullBackOff\n    Ready:          False\n    Restart Count:  0\nEvents:\n  Type     Reason   Age                 From     Message\n  ----     ------   ----                ----     -------\n  Normal   Pulling  10m (x4 over 12m)   kubelet  Pulling image \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\"\n  Warning  Failed   10m (x4 over 12m)   kubelet  Failed to pull image \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\": failed to pull and unpack image \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\": failed to resolve reference \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\": unexpected status from HEAD request to https://440534873012.dkr.ecr.eu-central-1.amazonaws.com/v2/payments/manifests/2.4.0: 403 Forbidden\n  Warning  Failed   10m (x4 over 12m)   kubelet  Error: ErrImagePull\n  Warning  Failed   2m (x42 over 12m)   kubelet  Error: ImagePullBackOff",
+    "kubectl get events -n shop --sort-by=.lastTimestamp": "LAST SEEN   TYPE      REASON   OBJECT                          MESSAGE\n10m         Warning   Failed   pod/payments-6a7b8c9d0e-s3t4u   Failed to pull image \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\": failed to pull and unpack image \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\": failed to resolve reference \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\": unexpected status from HEAD request to https://440534873012.dkr.ecr.eu-central-1.amazonaws.com/v2/payments/manifests/2.4.0: 403 Forbidden",
+    "kubectl get events -A --sort-by=.lastTimestamp": "NAMESPACE   LAST SEEN   TYPE      REASON   OBJECT                          MESSAGE\nshop        10m         Warning   Failed   pod/payments-6a7b8c9d0e-s3t4u   Failed to pull image \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\": failed to pull and unpack image \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\": failed to resolve reference \"440534873012.dkr.ecr.eu-central-1.amazonaws.com/payments:2.4.0\": unexpected status from HEAD request to https://440534873012.dkr.ecr.eu-central-1.amazonaws.com/v2/payments/manifests/2.4.0: 403 Forbidden",
+    "kubectl logs payments-6a7b8c9d0e-s3t4u -n shop --tail=200": "Error from server (BadRequest): container \"payments\" in pod \"payments-6a7b8c9d0e-s3t4u\" is waiting to start: trying and failing to pull image",
+    "kubectl get nodes -o wide": "NAME                                          STATUS     ROLES    AGE   VERSION               INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION                  CONTAINER-RUNTIME\nip-10-0-1-87.eu-central-1.compute.internal    Ready      <none>   14d   v1.35.0-eks-3a7b2c1   10.0.1.87     <none>        Amazon Linux 2023.9.20260921     6.12.40-63.114.amzn2023.x86_64   containerd://2.1.3\nip-10-0-2-41.eu-central-1.compute.internal    Ready      <none>   14d   v1.35.0-eks-3a7b2c1   10.0.2.41     <none>        Amazon Linux 2023.9.20260921     6.12.40-63.114.amzn2023.x86_64   containerd://2.1.3\nip-10-0-3-112.eu-central-1.compute.internal   Ready      <none>   14d   v1.35.0-eks-3a7b2c1   10.0.3.112    <none>        Amazon Linux 2023.9.20260921     6.12.40-63.114.amzn2023.x86_64   containerd://2.1.3",
+    "kubectl describe node ip-10-0-3-112.eu-central-1.compute.internal": "Name:               ip-10-0-3-112.eu-central-1.compute.internal\nRoles:              <none>\nLabels:             eks.amazonaws.com/nodegroup=ng-1\n                    node.kubernetes.io/instance-type=t3.large\n                    topology.kubernetes.io/zone=eu-central-1b\nTaints:             <none>\nUnschedulable:      false\nConditions:\n  Type             Status  LastHeartbeatTime                 Reason                       Message\n  ----             ------  -----------------                 ------                       -------\n  MemoryPressure   False   Fri, 16 Oct 2026 10:01:12 +0000   KubeletHasSufficientMemory   kubelet has sufficient memory available\n  DiskPressure     False   Fri, 16 Oct 2026 10:01:12 +0000   KubeletHasNoDiskPressure     kubelet has no disk pressure\n  PIDPressure      False   Fri, 16 Oct 2026 10:01:12 +0000   KubeletHasSufficientPID      kubelet has sufficient PID available\n  Ready            True    Fri, 16 Oct 2026 10:01:12 +0000   KubeletReady                 kubelet is posting ready status\nCapacity:\n  cpu:                2\n  ephemeral-storage:  20959212Ki\n  memory:             7936416Ki\n  pods:               35\nAllocatable:\n  cpu:                1930m\n  ephemeral-storage:  18242267924\n  memory:             7246240Ki\n  pods:               35\nEvents:\n<none>"
+  },
+  "expected": {
+    "category": [
+      "E",
+      "B",
+      "C"
+    ],
+    "root_cause_all": [
+      [
+        "403",
+        "forbidden",
+        "permission",
+        "denied",
+        "authoriz"
+      ],
+      [
+        "ecr",
+        "registry",
+        "iam",
+        "repository policy"
+      ]
+    ],
+    "must_not_claim": [
+      "tag does not exist",
+      "oom",
+      "dns"
+    ],
+    "min_tool_calls": 2
+  }
+}

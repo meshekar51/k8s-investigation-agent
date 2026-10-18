@@ -1,0 +1,14 @@
+# Rendered and applied by scripts/deploy.sh staging (image tag is swapped in by the script).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: agent-staging
+resources:
+  - ../../base
+configMapGenerator:
+  - name: sre-agent-config
+    behavior: merge
+    literals:
+      - AGENT_ENV=staging
+images:
+  - name: k8s-sre-agent
+    newTag: dev

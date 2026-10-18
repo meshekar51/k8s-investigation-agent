@@ -1,0 +1,19 @@
+# Rendered and applied by scripts/deploy.sh prod - in CI only after the "prod"
+# GitHub environment is approved. The script refuses prod without a guardrail id.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: agent-prod
+resources:
+  - ../../base
+  - pdb.yaml
+replicas:
+  - name: sre-agent
+    count: 2
+configMapGenerator:
+  - name: sre-agent-config
+    behavior: merge
+    literals:
+      - AGENT_ENV=prod
+images:
+  - name: k8s-sre-agent
+    newTag: dev

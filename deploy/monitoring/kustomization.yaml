@@ -1,0 +1,8 @@
+# Needs kube-prometheus-stack installed with release name "kps" (see handbook step 8):
+#   kubectl apply -k deploy/monitoring
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - servicemonitor.yaml
+  - prometheusrule.yaml

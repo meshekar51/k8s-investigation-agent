@@ -1,0 +1,167 @@
+# Practice lab: 9 workloads, each broken on purpose in a different way.
+#   kubectl apply -f lab/broken-workloads.yaml
+#   kubectl get pods -n lab -w          (wait ~2 min for the failures to show)
+# Clean up:  kubectl delete namespace lab
+#
+#  workload               | what is broken                          | category
+#  -----------------------|-----------------------------------------|---------
+#  checkout               | app exits: env var DATABASE_URL missing | A
+#  oom-app                | allocates 200MB with a 64Mi limit       | B
+#  bad-entrypoint         | command points to a missing binary      | B
+#  imagepull-app          | image tag does not exist                | B/C
+#  readiness-app          | readiness probe path returns 404        | C
+#  liveness-app           | liveness probe on a closed port         | C
+#  config-app             | references a ConfigMap that is missing  | A/C
+#  pending-cpu            | requests 64 CPUs                        | C
+#  pending-selector       | nodeSelector matches no node            | C
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: checkout, namespace: lab}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: checkout}}
+  template:
+    metadata: {labels: {app: checkout}}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'starting checkout service v2.3.1'; echo 'loading config'; if [ -z \"$DATABASE_URL\" ]; then echo 'FATAL: required environment variable DATABASE_URL is not set'; exit 1; fi; sleep 3600"]
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 32Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: oom-app, namespace: lab}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: oom-app}}
+  template:
+    metadata: {labels: {app: oom-app}}
+    spec:
+      containers:
+        - name: worker
+          image: python:3.12-alpine
+          command: ["python", "-c", "print('loading report cache', flush=True); data = b'x' * (200 * 1024 * 1024); print('cache loaded', flush=True)"]
+          resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {memory: 64Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: bad-entrypoint, namespace: lab}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: bad-entrypoint}}
+  template:
+    metadata: {labels: {app: bad-entrypoint}}
+    spec:
+      containers:
+        - name: api
+          image: nginx:1.27-alpine
+          command: ["/usr/local/bin/start-api.sh"]
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 64Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: imagepull-app, namespace: lab}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: imagepull-app}}
+  template:
+    metadata: {labels: {app: imagepull-app}}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.99.99-doesnotexist
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 64Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: readiness-app, namespace: lab}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: readiness-app}}
+  template:
+    metadata: {labels: {app: readiness-app}}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          ports: [{containerPort: 80}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 80}
+            periodSeconds: 5
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 64Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: liveness-app, namespace: lab}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: liveness-app}}
+  template:
+    metadata: {labels: {app: liveness-app}}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          ports: [{containerPort: 80}]
+          livenessProbe:
+            httpGet: {path: /, port: 8081}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 64Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: config-app, namespace: lab}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: config-app}}
+  template:
+    metadata: {labels: {app: config-app}}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          envFrom:
+            - configMapRef: {name: payment-config}
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 32Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: pending-cpu, namespace: lab}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: pending-cpu}}
+  template:
+    metadata: {labels: {app: pending-cpu}}
+    spec:
+      containers:
+        - name: batch
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          resources: {requests: {cpu: "64", memory: 64Mi}, limits: {memory: 64Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: pending-selector, namespace: lab}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: pending-selector}}
+  template:
+    metadata: {labels: {app: pending-selector}}
+    spec:
+      nodeSelector:
+        disktype: ssd
+      containers:
+        - name: db
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 32Mi}}

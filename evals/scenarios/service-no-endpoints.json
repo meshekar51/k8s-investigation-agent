@@ -1,0 +1,45 @@
+{
+  "id": "service-no-endpoints",
+  "description": "Service orders was re-applied 41m ago with selector app=order-service; pods are labelled app=orders",
+  "source": "seed (generated, realistic kubectl output)",
+  "input": "Checkout fails: the frontend in namespace shop gets connection refused from the orders service, but all pods are Running. Investigate.",
+  "fixtures": {
+    "kubectl get pods -A -o wide": "NAMESPACE     NAME                           READY   STATUS    RESTARTS   AGE   IP           NODE                                          NOMINATED NODE   READINESS GATES\nkube-system   aws-node-4kq9z                 2/2     Running   0          14d   10.0.1.87    ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nkube-system   aws-node-h7p2m                 2/2     Running   0          14d   10.0.3.112   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nkube-system   eks-pod-identity-agent-x9c2v   1/1     Running   0          14d   10.0.1.87    ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nkube-system   kube-proxy-7mz4q               1/1     Running   0          14d   10.0.1.87    ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nkube-system   kube-proxy-b2n8w               1/1     Running   0          14d   10.0.3.112   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nshop          cart-5b6c7d8e9f-a1b2c          1/1     Running   0          3d    10.0.1.201   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nshop          catalog-6c7d8e9f0a-d3e4f       1/1     Running   0          3d    10.0.3.150   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nshop          frontend-7d8e9f0a1b-g5h6i      1/1     Running   0          3d    10.0.1.144   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nshop          orders-8e9f0a1b2c-j7k8l        1/1     Running   0          3d    10.0.3.98    ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>",
+    "kubectl get pods -n shop -o wide": "NAME                        READY   STATUS    RESTARTS   AGE   IP           NODE                                          NOMINATED NODE   READINESS GATES\ncart-5b6c7d8e9f-a1b2c       1/1     Running   0          3d    10.0.1.201   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\ncatalog-6c7d8e9f0a-d3e4f    1/1     Running   0          3d    10.0.3.150   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nfrontend-7d8e9f0a1b-g5h6i   1/1     Running   0          3d    10.0.1.144   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\norders-8e9f0a1b2c-j7k8l     1/1     Running   0          3d    10.0.3.98    ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>",
+    "kubectl get events -n shop --sort-by=.lastTimestamp": "No resources found in shop namespace.",
+    "kubectl get events -A --sort-by=.lastTimestamp": "No resources found",
+    "kubectl get services -n shop -o wide": "NAME       TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE   SELECTOR\ncart       ClusterIP   172.20.41.17     <none>        8080/TCP   3d    app=cart\ncatalog    ClusterIP   172.20.88.203    <none>        8080/TCP   3d    app=catalog\nfrontend   ClusterIP   172.20.12.95     <none>        80/TCP     3d    app=frontend\norders     ClusterIP   172.20.150.66    <none>        8080/TCP   41m   app=order-service",
+    "kubectl get endpoints -n shop -o wide": "NAME       ENDPOINTS          AGE\ncart       10.0.1.201:8080    3d\ncatalog    10.0.3.150:8080    3d\nfrontend   10.0.1.144:80      3d\norders     <none>             41m",
+    "kubectl describe services orders -n shop": "Name:              orders\nNamespace:         shop\nLabels:            app=orders\nAnnotations:       kubectl.kubernetes.io/last-applied-configuration: {...}\nSelector:          app=order-service\nType:              ClusterIP\nIP Family Policy:  SingleStack\nIP Families:       IPv4\nIP:                172.20.150.66\nIPs:               172.20.150.66\nPort:              http  8080/TCP\nTargetPort:        8080/TCP\nEndpoints:         \nSession Affinity:  None\nEvents:            <none>",
+    "kubectl describe pod orders-8e9f0a1b2c-j7k8l -n shop": "Name:             orders-8e9f0a1b2c-j7k8l\nNamespace:        shop\nService Account:  default\nNode:             ip-10-0-3-112.eu-central-1.compute.internal/10.0.3.112\nLabels:           app=orders\n                  pod-template-hash=8e9f0a1b2c\nStatus:           Running\nIP:               10.0.3.98\nContainers:\n  orders:\n    Image:          440534873012.dkr.ecr.eu-central-1.amazonaws.com/orders:1.8.2\n    Port:           8080/TCP\n    State:          Running\n    Ready:          True\n    Restart Count:  0\n    Readiness:      http-get http://:8080/ready delay=5s timeout=1s period=10s #success=1 #failure=3\nConditions:\n  Type              Status\n  Ready             True\n  ContainersReady   True\nEvents:            <none>",
+    "kubectl logs frontend-7d8e9f0a1b-g5h6i -n shop --tail=200": "2026-10-16T09:58:01Z ERROR upstream orders:8080 POST /api/orders -> dial tcp 172.20.150.66:8080: connect: connection refused\n2026-10-16T09:58:07Z ERROR upstream orders:8080 POST /api/orders -> dial tcp 172.20.150.66:8080: connect: connection refused",
+    "kubectl get nodes -o wide": "NAME                                          STATUS     ROLES    AGE   VERSION               INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION                  CONTAINER-RUNTIME\nip-10-0-1-87.eu-central-1.compute.internal    Ready      <none>   14d   v1.35.0-eks-3a7b2c1   10.0.1.87     <none>        Amazon Linux 2023.9.20260921     6.12.40-63.114.amzn2023.x86_64   containerd://2.1.3\nip-10-0-2-41.eu-central-1.compute.internal    Ready      <none>   14d   v1.35.0-eks-3a7b2c1   10.0.2.41     <none>        Amazon Linux 2023.9.20260921     6.12.40-63.114.amzn2023.x86_64   containerd://2.1.3\nip-10-0-3-112.eu-central-1.compute.internal   Ready      <none>   14d   v1.35.0-eks-3a7b2c1   10.0.3.112    <none>        Amazon Linux 2023.9.20260921     6.12.40-63.114.amzn2023.x86_64   containerd://2.1.3"
+  },
+  "expected": {
+    "category": [
+      "C",
+      "D"
+    ],
+    "root_cause_all": [
+      [
+        "selector",
+        "label"
+      ],
+      [
+        "order-service"
+      ],
+      [
+        "endpoint",
+        "no pods",
+        "does not match"
+      ]
+    ],
+    "must_not_claim": [
+      "security group",
+      "network policy",
+      "oom",
+      "dns"
+    ],
+    "min_tool_calls": 3
+  }
+}

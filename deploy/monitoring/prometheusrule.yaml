@@ -1,0 +1,43 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sre-agent
+  labels:
+    release: kps
+spec:
+  groups:
+    - name: sre-agent
+      rules:
+        - alert: SREAgentDown
+          expr: sum by (namespace) (up{service="sre-agent"}) == 0
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: "SRE agent in {{ $labels.namespace }} is down"
+        - alert: SREAgentHighErrorRate
+          expr: |
+            sum by (env) (rate(sre_agent_investigations_total{status="error"}[30m]))
+              / sum by (env) (rate(sre_agent_investigations_total[30m])) > 0.10
+          for: 15m
+          labels: {severity: warning}
+          annotations:
+            summary: "More than 10% of investigations fail in {{ $labels.env }} (Bedrock throttling? IAM? RBAC?)"
+        - alert: SREAgentNoVerdict
+          expr: |
+            sum by (env) (rate(sre_agent_investigations_total{status="no_footer"}[1h]))
+              / sum by (env) (rate(sre_agent_investigations_total[1h])) > 0.20
+          for: 30m
+          labels: {severity: warning}
+          annotations:
+            summary: "Agent answers without a machine-readable verdict - prompt or model drift, re-run evals"
+        - alert: SREAgentSlow
+          expr: histogram_quantile(0.95, sum by (le, env) (rate(sre_agent_investigation_seconds_bucket[30m]))) > 120
+          for: 30m
+          labels: {severity: warning}
+          annotations:
+            summary: "p95 investigation time above 2 minutes in {{ $labels.env }}"
+        - alert: SREAgentTokenBurn
+          expr: sum by (env) (increase(sre_agent_llm_tokens_total[1h])) > 2000000
+          labels: {severity: warning}
+          annotations:
+            summary: "More than 2M tokens in the last hour in {{ $labels.env }} - check for loops or abuse"

@@ -1,0 +1,39 @@
+{
+  "id": "insufficient-evidence-slow-app",
+  "description": "Everything is healthy in Kubernetes; 'slow' needs metrics/APM/ALB data the agent does not have",
+  "source": "seed (generated, realistic kubectl output)",
+  "input": "Customers say the shop website felt slow yesterday evening. What was the root cause?",
+  "fixtures": {
+    "kubectl get pods -A -o wide": "NAMESPACE     NAME                           READY   STATUS    RESTARTS   AGE   IP           NODE                                          NOMINATED NODE   READINESS GATES\nkube-system   aws-node-4kq9z                 2/2     Running   0          14d   10.0.1.87    ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nkube-system   aws-node-h7p2m                 2/2     Running   0          14d   10.0.3.112   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nkube-system   eks-pod-identity-agent-x9c2v   1/1     Running   0          14d   10.0.1.87    ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nkube-system   kube-proxy-7mz4q               1/1     Running   0          14d   10.0.1.87    ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nkube-system   kube-proxy-b2n8w               1/1     Running   0          14d   10.0.3.112   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nshop          cart-5b6c7d8e9f-a1b2c          1/1     Running   0          3d    10.0.1.201   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nshop          catalog-6c7d8e9f0a-d3e4f       1/1     Running   0          3d    10.0.3.150   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nshop          frontend-7d8e9f0a1b-g5h6i      1/1     Running   0          3d    10.0.1.144   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\nshop          orders-8e9f0a1b2c-j7k8l        1/1     Running   0          3d    10.0.3.98    ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>",
+    "kubectl get pods -n shop -o wide": "NAME                        READY   STATUS    RESTARTS   AGE   IP           NODE                                          NOMINATED NODE   READINESS GATES\ncart-5b6c7d8e9f-a1b2c       1/1     Running   0          3d    10.0.1.201   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\ncatalog-6c7d8e9f0a-d3e4f    1/1     Running   0          3d    10.0.3.150   ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>\nfrontend-7d8e9f0a1b-g5h6i   1/1     Running   0          3d    10.0.1.144   ip-10-0-1-87.eu-central-1.compute.internal    <none>           <none>\norders-8e9f0a1b2c-j7k8l     1/1     Running   0          3d    10.0.3.98    ip-10-0-3-112.eu-central-1.compute.internal   <none>           <none>",
+    "kubectl get events -n shop --sort-by=.lastTimestamp": "No resources found in shop namespace.",
+    "kubectl get events -A --sort-by=.lastTimestamp": "No resources found",
+    "kubectl get nodes -o wide": "NAME                                          STATUS     ROLES    AGE   VERSION               INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION                  CONTAINER-RUNTIME\nip-10-0-1-87.eu-central-1.compute.internal    Ready      <none>   14d   v1.35.0-eks-3a7b2c1   10.0.1.87     <none>        Amazon Linux 2023.9.20260921     6.12.40-63.114.amzn2023.x86_64   containerd://2.1.3\nip-10-0-2-41.eu-central-1.compute.internal    Ready      <none>   14d   v1.35.0-eks-3a7b2c1   10.0.2.41     <none>        Amazon Linux 2023.9.20260921     6.12.40-63.114.amzn2023.x86_64   containerd://2.1.3\nip-10-0-3-112.eu-central-1.compute.internal   Ready      <none>   14d   v1.35.0-eks-3a7b2c1   10.0.3.112    <none>        Amazon Linux 2023.9.20260921     6.12.40-63.114.amzn2023.x86_64   containerd://2.1.3",
+    "kubectl describe pod frontend-7d8e9f0a1b-g5h6i -n shop": "Name:             frontend-7d8e9f0a1b-g5h6i\nNamespace:        shop\nStatus:           Running\nContainers:\n  frontend:\n    State:          Running\n    Ready:          True\n    Restart Count:  0\n    Limits:\n      memory:  512Mi\n    Requests:\n      cpu:     250m\n      memory:  256Mi\nConditions:\n  Ready   True\nEvents:            <none>",
+    "kubectl logs frontend-7d8e9f0a1b-g5h6i -n shop --tail=200": "2026-10-16T09:58:01Z INFO GET / 200 182ms\n2026-10-16T09:58:03Z INFO GET /products 200 240ms\n2026-10-16T09:58:04Z INFO GET /cart 200 96ms"
+  },
+  "expected": {
+    "category": [
+      "UNKNOWN"
+    ],
+    "root_cause_all": [
+      [
+        "insufficient",
+        "not enough",
+        "cannot determine",
+        "unable to determine",
+        "no evidence",
+        "additional",
+        "need"
+      ]
+    ],
+    "must_not_claim": [
+      "oom",
+      "crashloop",
+      "image pull",
+      "node notready",
+      "disk pressure"
+    ],
+    "min_tool_calls": 2
+  }
+}

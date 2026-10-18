@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sre-agent
+  labels: {app.kubernetes.io/name: sre-agent}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: {app.kubernetes.io/name: sre-agent}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: sre-agent}
+    spec:
+      serviceAccountName: sre-agent          # Kubernetes identity: read-only ClusterRole (deploy/platform)
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: agent
+          image: k8s-sre-agent                # scripts/deploy.sh swaps in k8s-sre-agent:<git-sha>
+          imagePullPolicy: IfNotPresent       # image is loaded into kind, never pulled
+          ports:
+            - {name: http, containerPort: 8080}
+          envFrom:
+            - configMapRef: {name: sre-agent-config}
+            - secretRef: {name: sre-agent-aws}               # AWS identity for Bedrock (least-privilege IAM)
+            - secretRef: {name: sre-agent-db}                # POSTGRES_PASSWORD
+            - secretRef: {name: sre-agent-auth, optional: true}   # API_TOKEN for callers
+          env:
+            - name: POD_NAMESPACE
+              valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 64Mi}

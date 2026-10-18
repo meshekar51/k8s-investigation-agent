@@ -1,0 +1,7 @@
+# cp terraform.tfvars.example terraform.tfvars   (terraform.tfvars is git-ignored)
+region                       = "eu-central-1"
+bedrock_inference_profile_id = "eu.anthropic.claude-sonnet-5-5"
+github_repo                  = "your-github-user/k8s-sre-agent"
+create_github_oidc_provider  = true
+budget_email                 = "you@example.com"
+monthly_budget_usd           = 30
